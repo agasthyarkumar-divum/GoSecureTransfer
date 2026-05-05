@@ -6,8 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
+	"gosecuretransfer/internal/auth"
 	"gosecuretransfer/internal/crypto"
+	"gosecuretransfer/internal/storage"
 )
 
 // ⚠️ Temporary key (32 bytes for AES-256)
@@ -18,6 +21,26 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// 🔐 1. Extract token
+	tokenStr := r.Header.Get("Authorization")
+	if tokenStr == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tokenStr = strings.TrimPrefix(tokenStr, "Bearer ")
+
+	// 🔐 2. Validate token
+	user, err := auth.ValidateToken(tokenStr)
+	if err != nil {
+		log.Println("❌ Invalid token:", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	log.Println("👤 User:", user)
+
+	// 📁 3. Read file
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		log.Println("❌ Error reading file:", err)
@@ -35,7 +58,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔐 Encrypt
+	// 🔐 4. Encrypt file
 	encrypted, nonce, err := crypto.Encrypt(data, key)
 	if err != nil {
 		log.Println("❌ Encryption failed:", err)
@@ -45,7 +68,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	finalData := append(nonce, encrypted...)
 
-	// 💾 Save file
+	// 💾 5. Save file
 	err = os.WriteFile("storage/"+header.Filename, finalData, 0644)
 	if err != nil {
 		log.Println("❌ File save failed:", err)
@@ -53,7 +76,11 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 🔐 6. Store ownership
+	storage.FileOwner[header.Filename] = user
+
 	log.Println("✅ File encrypted & stored:", header.Filename)
 
+	// 📤 Response
 	fmt.Fprintf(w, "Uploaded: %s", header.Filename)
 }
