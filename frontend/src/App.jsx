@@ -2,6 +2,7 @@ import { useState } from "react";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
+import "./index.css";
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -9,19 +10,13 @@ function App() {
 
   if (!token) {
     return (
-      <div>
+      <>
         {mode === "login" ? (
-          <>
-            <Login setToken={setToken} />
-            <p onClick={() => setMode("register")}>New user? Register</p>
-          </>
+          <Login setToken={setToken} setMode={setMode} />
         ) : (
-          <>
-            <Register />
-            <p onClick={() => setMode("login")}>Already have account?</p>
-          </>
+          <Register setMode={setMode} />
         )}
-      </div>
+      </>
     );
   }
 

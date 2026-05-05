@@ -14,7 +14,7 @@ import (
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("📥 Download request received")
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
 
 	filename := r.URL.Query().Get("file")
 	log.Println("📁 Requested file:", filename)
@@ -57,7 +57,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	nonce := data[:12]
 	ciphertext := data[12:]
 
-	decrypted, err := crypto.Decrypt(ciphertext, nonce, key)
+	decrypted, err := crypto.Decrypt(ciphertext, nonce, EncryptionKey)
 	if err != nil {
 		log.Println("❌ Decryption failed:", err)
 		http.Error(w, "Decryption failed", http.StatusInternalServerError)

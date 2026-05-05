@@ -14,7 +14,7 @@ import (
 func ListFilesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("📂 List files request")
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
 	w.Header().Set("Content-Type", "application/json")
 
 	// 🔐 1. Extract token

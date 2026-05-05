@@ -1,13 +1,31 @@
 package auth
 
 import (
+	"log"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// ⚠️ Temporary secret (we will move this to env later)
-var secret = []byte("supersecretkey")
+// secret is initialized from environment or default
+var secret []byte
+
+// InitAuth initializes the auth package with environment variables
+func InitAuth() {
+	// Read JWT secret from environment
+	secretStr := os.Getenv("JWT_SECRET")
+	if secretStr == "" {
+		secretStr = "supersecretkey" // Default secret
+		log.Println("⚠️ JWT_SECRET not set, using default")
+	}
+
+	if len(secretStr) < 32 {
+		log.Println("⚠️ JWT_SECRET should be at least 32 characters for security")
+	}
+
+	secret = []byte(secretStr)
+}
 
 // Generate JWT token
 func GenerateToken(username string) (string, error) {

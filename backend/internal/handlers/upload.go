@@ -13,13 +13,10 @@ import (
 	"gosecuretransfer/internal/storage"
 )
 
-// ⚠️ Temporary key (32 bytes for AES-256)
-var key = []byte("12345678901234567890123456789012")
-
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("📤 Upload request received")
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
 
 	// 🔐 1. Extract token
 	tokenStr := r.Header.Get("Authorization")
@@ -59,7 +56,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 🔐 4. Encrypt file
-	encrypted, nonce, err := crypto.Encrypt(data, key)
+	encrypted, nonce, err := crypto.Encrypt(data, EncryptionKey)
 	if err != nil {
 		log.Println("❌ Encryption failed:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
