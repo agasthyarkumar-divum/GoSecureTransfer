@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"fmt"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +10,7 @@ import (
 
 	"gosecuretransfer/internal/auth"
 	"gosecuretransfer/internal/crypto"
+	"gosecuretransfer/internal/db"
 	"gosecuretransfer/internal/storage"
 )
 
@@ -17,6 +18,12 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("📤 Upload request received")
 
 	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
+
+	// 🔍 Only allow POST method
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
 	// 🔐 1. Extract token
 	tokenStr := r.Header.Get("Authorization")
@@ -73,11 +80,27 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔐 6. Store ownership
+	// � 6. Insert file metadata into database
+	_, err = db.DB.Exec(
+		"INSERT INTO files (filename, owner) VALUES ($1, $2)",
+		header.Filename,
+		user,
+	)
+	if err != nil {
+		log.Println("❌ Database insert failed:", err)
+		http.Error(w, "Failed to store file metadata: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 🔐 7. Store ownership in memory (backup)
 	storage.FileOwner[header.Filename] = user
 
 	log.Println("✅ File encrypted & stored:", header.Filename)
 
 	// 📤 Response
-	fmt.Fprintf(w, "Uploaded: %s", header.Filename)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File uploaded successfully",
+		"filename": header.Filename,
+	})
 }

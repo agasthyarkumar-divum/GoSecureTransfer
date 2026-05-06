@@ -6,6 +6,7 @@ function FileList({ token }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(null);
 
   const loadFiles = async () => {
     setLoading(true);
@@ -54,6 +55,71 @@ function FileList({ token }) {
     }
   };
 
+  const deleteFile = async (file) => {
+    if (!window.confirm(`Are you sure you want to delete "${file}"?`)) {
+      return;
+    }
+
+    setDeleting(file);
+    try {
+      console.log("🗑️ Deleting file:", file);
+      const res = await apiCall(`/delete?file=${file}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      console.log("Delete response:", res.status);
+
+      if (res.ok) {
+        console.log("✅ File deleted successfully");
+        setFiles(files.filter(f => f !== file));
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError("Failed to delete file: " + (errorData.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("❌ Delete error:", err);
+      setError("Delete error: " + err.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const deleteAllFiles = async () => {
+    if (!window.confirm("Are you sure you want to delete ALL files? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeleting("all");
+    try {
+      console.log("🗑️ Deleting all files");
+      const res = await apiCall("/delete-all", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      console.log("Delete all response:", res.status);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log("✅ All files deleted. Deleted count:", data.deleted);
+        setFiles([]);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError("Failed to delete all files: " + (errorData.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("❌ Delete all error:", err);
+      setError("Delete error: " + err.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="file-list-container">
@@ -70,10 +136,33 @@ function FileList({ token }) {
 
       <div className="files-header">
         <h3>Your Secure Files</h3>
-        <button className="refresh-btn" onClick={loadFiles} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <RefreshIcon size={16} color="#0066cc" />
-          Refresh
-        </button>
+        <div className="header-buttons" style={{ display: "flex", gap: "8px" }}>
+          <button className="refresh-btn" onClick={loadFiles} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <RefreshIcon size={16} color="#0066cc" />
+            Refresh
+          </button>
+          {files.length > 0 && (
+            <button 
+              className="delete-all-btn" 
+              onClick={deleteAllFiles}
+              disabled={deleting === "all"}
+              style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "4px",
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                padding: "8px 12px",
+                borderRadius: "4px",
+                cursor: deleting === "all" ? "not-allowed" : "pointer",
+                opacity: deleting === "all" ? 0.6 : 1
+              }}
+            >
+              🗑️ Delete All
+            </button>
+          )}
+        </div>
       </div>
 
       {files.length === 0 ? (
@@ -96,10 +185,31 @@ function FileList({ token }) {
                   className="download-btn"
                   onClick={() => download(file)}
                   title="Download file"
+                  disabled={deleting !== null}
                   style={{ display: "flex", alignItems: "center", gap: "4px" }}
                 >
                   <DownloadIcon size={16} color="#0066cc" />
                   Download
+                </button>
+                <button
+                  className="delete-btn"
+                  onClick={() => deleteFile(file)}
+                  disabled={deleting !== null}
+                  title="Delete file"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    padding: "6px 10px",
+                    borderRadius: "4px",
+                    cursor: deleting !== null ? "not-allowed" : "pointer",
+                    opacity: deleting !== null ? 0.6 : 1
+                  }}
+                >
+                  {deleting === file ? "🗑️ Deleting..." : "🗑️ Delete"}
                 </button>
               </div>
             </div>

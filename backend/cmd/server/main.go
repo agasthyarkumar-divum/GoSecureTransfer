@@ -53,6 +53,8 @@ func main() {
 	http.HandleFunc("/download", enableCORS(handlers.DownloadHandler))
 	http.HandleFunc("/files", enableCORS(handlers.ListFilesHandler))
 	http.HandleFunc("/register", enableCORS(handlers.RegisterHandler))
+	http.HandleFunc("/delete", enableCORS(handlers.DeleteFileHandler))
+	http.HandleFunc("/delete-all", enableCORS(handlers.DeleteAllFilesHandler))
 
 	// Read port from environment or use default
 	port := os.Getenv("PORT")

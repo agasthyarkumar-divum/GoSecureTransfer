@@ -8,6 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"gosecuretransfer/internal/auth"
+	"gosecuretransfer/internal/db"
 	"gosecuretransfer/internal/storage"
 )
 
@@ -21,6 +22,12 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("🆕 Register request")
 
 	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
+
+	// 🔍 Only allow POST method
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
 	var req AuthRequest
 	json.NewDecoder(r.Body).Decode(&req)
@@ -43,12 +50,27 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 💾 Store user
+	// 💾 Store user in database
+	_, err = db.DB.Exec(
+		"INSERT INTO users (username, password) VALUES ($1, $2)",
+		req.Username,
+		string(hash),
+	)
+	if err != nil {
+		log.Println("❌ Database insert failed:", err)
+		http.Error(w, "Failed to register user: "+err.Error(), 500)
+		return
+	}
+
+	// 💾 Store user in memory (backup)
 	storage.Users[req.Username] = string(hash)
 
 	log.Println("✅ User registered:", req.Username)
 
-	w.Write([]byte("User registered successfully"))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "User registered successfully",
+	})
 }
 
 // 🔐 LOGIN
@@ -57,18 +79,27 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
 	w.Header().Set("Content-Type", "application/json")
-
+	// 🔍 Only allow POST method
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	var req AuthRequest
 	json.NewDecoder(r.Body).Decode(&req)
 
-	storedHash, exists := storage.Users[req.Username]
-	if !exists {
+	var storedHash string
+	err := db.DB.QueryRow(
+		"SELECT password FROM users WHERE username = $1",
+		req.Username,
+	).Scan(&storedHash)
+	if err != nil {
+		log.Println("❌ User not found:", err)
 		http.Error(w, "User not found", 401)
 		return
 	}
 
 	// 🔐 Compare password
-	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(req.Password))
 	if err != nil {
 		http.Error(w, "Invalid password", 401)
 		return

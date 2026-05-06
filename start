@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Colors for better visibility
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}Starting GoSecureTransfer...${NC}"
+echo ""
+
+# Function to run backend with logging
+run_backend() {
+    cd backend
+    echo -e "${GREEN}[BACKEND]${NC} Starting backend server..."
+    go run ./cmd/server/main.go 2>&1 | sed "s/^/$(echo -e ${GREEN})[BACKEND]$(echo -e ${NC}) /"
+    cd ..
+}
+
+# Function to run frontend with logging
+run_frontend() {
+    cd frontend
+    echo -e "${GREEN}[FRONTEND]${NC} Starting frontend dev server..."
+    npm run dev 2>&1 | sed "s/^/$(echo -e ${GREEN})[FRONTEND]$(echo -e ${NC}) /"
+    cd ..
+}
+
+# Trap to handle script termination
+cleanup() {
+    echo ""
+    echo -e "${BLUE}Shutting down services...${NC}"
+    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+# Start both services in the background
+run_backend &
+BACKEND_PID=$!
+
+run_frontend &
+FRONTEND_PID=$!
+
+echo ""
+echo -e "${GREEN}Both services started!${NC}"
+echo "Backend PID: $BACKEND_PID"
+echo "Frontend PID: $FRONTEND_PID"
+echo "Press Ctrl+C to stop both services"
+echo ""
+
+# Wait for both processes
+wait $BACKEND_PID $FRONTEND_PID

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { apiCall } from "../utils/api";
+import { apiCall, getApiUrl } from "../utils/api";
 import { FolderIcon } from "./Icons";
 
 function Upload({ token }) {
@@ -20,6 +20,9 @@ function Upload({ token }) {
       const formData = new FormData();
       formData.append("file", file);
 
+      console.log("📤 Starting upload for file:", file.name);
+      console.log("🔗 Uploading to:", getApiUrl ? getApiUrl() + "/upload" : "/upload");
+
       const res = await apiCall("/upload", {
         method: "POST",
         headers: {
@@ -27,6 +30,9 @@ function Upload({ token }) {
         },
         body: formData
       });
+
+      console.log("📊 Upload response status:", res.status);
+      console.log("✅ Upload response:", res);
 
       if (res.ok) {
         setProgress(100);
@@ -39,6 +45,7 @@ function Upload({ token }) {
         setError("Upload failed. Please try again.");
       }
     } catch (err) {
+      console.error("❌ Upload error:", err);
       setError("Connection error. Please try again.");
     } finally {
       setUploading(false);

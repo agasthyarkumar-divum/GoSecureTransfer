@@ -8,13 +8,19 @@ import (
 
 	"gosecuretransfer/internal/auth"
 	"gosecuretransfer/internal/crypto"
-	"gosecuretransfer/internal/storage"
+	"gosecuretransfer/internal/db"
 )
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("📥 Download request received")
 
 	w.Header().Set("Access-Control-Allow-Origin", CORSOrigin)
+
+	// 🔍 Only allow GET method
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
 	filename := r.URL.Query().Get("file")
 	log.Println("📁 Requested file:", filename)
@@ -38,8 +44,19 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("👤 User:", user)
 
-	// 🔐 3. Ownership check
-	if storage.FileOwner[filename] != user {
+	// 🔐 3. Check ownership from database
+	var owner string
+	err = db.DB.QueryRow(
+		"SELECT owner FROM files WHERE filename = $1",
+		filename,
+	).Scan(&owner)
+	if err != nil {
+		log.Println("❌ File not found in database:", err)
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	if owner != user {
 		log.Println("❌ Unauthorized access attempt")
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return

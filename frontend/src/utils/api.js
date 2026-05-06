@@ -1,5 +1,11 @@
 // API configuration utility
 export const getApiUrl = () => {
+  // In development, use relative URLs (proxy handles routing)
+  // In production, use the full URL from environment
+  if (import.meta.env.DEV) {
+    return '';
+  }
+  
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost';
   const apiPort = import.meta.env.VITE_API_PORT || '8080';
   return `${apiUrl}:${apiPort}`;
